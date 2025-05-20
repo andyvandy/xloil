@@ -125,12 +125,28 @@ namespace xloil
     XLO_RETHROW_COM_ERROR;
   }
 
-  std::wstring ExcelRange::address(bool local) const
+  std::wstring ExcelRange::address(AddressStyle style) const
   {
     try
     {
-      auto result = com().GetAddress(true, true, Excel::xlA1, !local);
+      const bool rowFixed = (style & AddressStyle::ROW_FIXED) != 0;
+      const bool colFixed = (style & AddressStyle::COL_FIXED) != 0;
+      const auto refStyle = (style & AddressStyle::RC) != 0
+        ? Excel::xlR1C1
+        : Excel::xlA1;
+      const bool local = (style & AddressStyle::LOCAL) != 0;
+      auto result = com().GetAddress(
+        rowFixed, colFixed, refStyle, !local);
       return std::wstring(result);
+    }
+    XLO_RETHROW_COM_ERROR;
+  }
+
+  size_t ExcelRange::nAreas() const
+  {
+    try
+    {
+      return size_t(com().GetAreas()->Count);
     }
     XLO_RETHROW_COM_ERROR;
   }
@@ -176,7 +192,7 @@ namespace xloil
   {
     try
     { 
-      static bool dynamicArrays = Environment::excelProcess().supportsDynamicArrays();
+      static bool dynamicArrays = Environment::excelProcess().supportsDynamicArrays;
       VARIANT v;
       COM::excelObjToVariant(&v, formula);
       auto value = _variant_t(v, false);  // Move variant
@@ -194,8 +210,21 @@ namespace xloil
   {
     try
     {
-      static bool dynamicArrays = Environment::excelProcess().supportsDynamicArrays();
+      static bool dynamicArrays = Environment::excelProcess().supportsDynamicArrays;
       return COM::variantToExcelObj(dynamicArrays ? com().Formula2 : com().Formula);
+    }
+    XLO_RETHROW_COM_ERROR;
+  }
+
+  std::optional<bool> ExcelRange::hasFormula() const
+  {
+    try
+    {
+      auto result = com().HasFormula;
+      if (result.vt == VT_BOOL)
+        return (bool)result;
+      else
+        return std::optional<bool>();
     }
     XLO_RETHROW_COM_ERROR;
   }
@@ -211,7 +240,7 @@ namespace xloil
 
   std::wstring ExcelRange::name() const
   {
-    return address(false);
+    return address();
   }
 
   ExcelWorksheet ExcelRange::parent() const
@@ -222,8 +251,54 @@ namespace xloil
     }
     XLO_RETHROW_COM_ERROR;
   }
+
   Application ExcelRange::app() const
   {
     return parent().app();
+  }
+  enum class SpecialCellsValue : int
+  {
+    Errors = 16,
+    Logical = 4,
+    Numbers = 1,
+    TextValues = 2,
+  };
+
+  ExcelRange ExcelRange::specialCells(SpecialCells type, ExcelType values) const
+  {
+    // Use raw_SpecialCells to avoid catch?
+    try
+    {
+      _variant_t specialCellsValue = vtMissing;
+      auto cellType = Excel::XlCellType(int(type));
+      if (unsigned(values) != 0 && 
+        (type == SpecialCells::Constants || type == SpecialCells::Formulas))
+      {
+        // Conveniently, the XlSpecialCellsValue enumeration matches XLL's
+        // xltype enumeration, so we forward the int without modification.
+        specialCellsValue = _variant_t(unsigned(values));
+      }
+
+      return ExcelRange(
+        com().SpecialCells(cellType, specialCellsValue).Detach(), true);
+    }
+    catch (_com_error& error)
+    {
+      if (error.Error() == VBA_E_IGNORE)
+        throw xloil::ComBusyException();
+      else if (error.Error() == 0x800A03EC)
+        return ExcelRange();
+      else
+        XLO_THROW(L"COM Error {0:#x}: {1}", (unsigned)error.Error(), error.ErrorMessage()); \
+    }
+  }
+
+  ComIterator<ExcelRange> ExcelRange::begin() const
+  {
+    try
+    {
+      return ComIterator<ExcelRange>(com().Get_NewEnum());
+    }
+    XLO_RETHROW_COM_ERROR;
   }
 }

@@ -93,7 +93,7 @@ Excel Object Model
 	:members: 
 	:inherited-members:
 	:undoc-members:
-	:special-members: __getitem__
+	:special-members: __getitem__, __setitem__
 
 .. autoclass:: ExcelWindow
 	:members: 
@@ -117,6 +117,12 @@ Excel Object Model
 
 .. autoclass:: PauseExcel
 	:members: 
+
+.. automodule:: xloil
+	:members: SpecialCells
+	:imported-members:
+	:undoc-members:
+
 
 RTD Functions
 -------------
@@ -239,8 +245,9 @@ Everything else
 	from_excel_date
 	date_formats
 	linked_workbook
-	source_addin
 	excel_state
+	check_abort
+	Address
 	run
 	run_async
 	call
@@ -265,9 +272,12 @@ Everything else
 	:no-value:
 
 .. automodule:: xloil
-	:members: in_wizard,get_async_loop,get_event_loop,from_excel_date,linked_workbook,source_addin,excel_state,run,run_async,call,call_async,excel_callback,source_addin,xloil_addins,core_addin
+	:members: in_wizard,get_async_loop,get_event_loop,from_excel_date,linked_workbook,source_addin,excel_state,run,run_async,call,call_async,excel_callback,source_addin,xloil_addins,core_addin,check_abort
 	:imported-members:
 	:undoc-members:
+
+.. autoclass:: Address
+	:members:
 
 .. autodata:: date_formats
 	:annotation: = _DateFormatList

@@ -143,6 +143,8 @@ namespace xloil
         if (!importNumpy())
           throw py::error_already_set();
 
+        importDatetime();
+
         theExcelObjType = (PyTypeObject*)py::class_<ExcelObj>(
           mod, 
           "_RawExcelValue"
@@ -213,14 +215,19 @@ namespace xloil
         // TODO: move to basictypes but beware of pybind declaration order!
         {
           // Bind CellError type to xloil::CellError enum
-          auto eType = py::enum_<CellError>(mod, "CellError", 
+          auto eType = py::BetterEnum<CellError>(mod, "CellError", 0x800a07D0,
             R"(
               Enum-type class which represents an Excel error condition of the 
               form `#N/A!`, `#NAME!`, etc passed as a function argument. If a 
-              function argument does not specify a type (e.g. int, str) it may be passed 
-              a CellError, which it can handle based on the error condition.
-            )");
+              registered function argument does not explicitly specify a type 
+              (e.g. int or str via an annotation), it may be passed a *CellError*, 
+              which it can handle based on the error type.
 
+              The integer value of a *CellError* corresponds to it's VBA/COM error
+              number, so for example we can write 
+              `if cell.Value2 == CellError.NA.value: ...`
+            )");
+          
           for (auto e : theCellErrors)
             eType.value(cellErrorSymbol(e).c_str(), e);
 
